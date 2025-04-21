@@ -26,13 +26,13 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <Button
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/openChatHistoryButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
+            android:src="@android:drawable/ic_dialog_dialer"
             android:text="History"
-            android:onClick="openHistory"
             tools:layout_editor_absoluteX="302dp"
             tools:layout_editor_absoluteY="16dp" />
     </androidx.appcompat.widget.Toolbar>
@@ -100,7 +100,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:contentDescription="Send message"
-            android:onClick="sendMessage"
             app:backgroundTint="#7C4DFF"
             app:fabSize="normal"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -117,7 +116,6 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:contentDescription="Start new chat"
-        android:onClick="newChat"
         android:src="@android:drawable/ic_input_add" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

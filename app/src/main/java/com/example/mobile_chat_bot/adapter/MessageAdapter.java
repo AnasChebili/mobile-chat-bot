@@ -1,5 +1,6 @@
 package com.example.mobile_chat_bot.adapter;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -41,6 +42,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public void onBindViewHolder(MessageViewHolder holder, int position) {
         Message current = messageList.get(position);
         holder.messageTextView.setText(current.getSender() + ": " + current.getContent());
+        holder.messageTextView.setVisibility(View.VISIBLE);
+        Log.d("ChatAdapter", "Binding message: role=" + current.getSender() + ", content=" + current.getContent());
+
     }
 
     @Override
