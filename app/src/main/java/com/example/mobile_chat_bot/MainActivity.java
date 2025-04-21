@@ -1,32 +1,43 @@
 package com.example.mobile_chat_bot;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.StrictMode;
-import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.example.mobile_chat_bot.adapter.MessageAdapter;
+import com.example.mobile_chat_bot.api.MistralApiClient;
+import com.example.mobile_chat_bot.data.AppDatabase;
+import com.example.mobile_chat_bot.model.ChatSession;
+import com.example.mobile_chat_bot.model.Message;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "MistralTest";
-    private static final String API_KEY = "kVvcTttXC8hLXkYY3ijrBsaE0U5RX2gY";
-    private static final String API_URL = "https://api.mistral.ai/v1/chat/completions";
-    private static final String MODEL = "mistral-tiny"; //
+    private MistralApiClient mistralApiClient;
+    private EditText inputEditText;
+    private FloatingActionButton sendButton;
+    private FloatingActionButton newChatButton;
+    private FloatingActionButton openChatHistoryButton;
+    private RecyclerView chatRecyclerView;
+    private MessageAdapter messageAdapter;
+    private List<Message> messageList = new ArrayList<>();
+    private AppDatabase db;
+    private int currentSessionId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,62 +50,83 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+        sendButton = findViewById(R.id.sendButton);
+        newChatButton = findViewById(R.id.newChatButton);
+        openChatHistoryButton = findViewById(R.id.openChatHistoryButton);
+        inputEditText = findViewById(R.id.inputEditText);
 
-        new Thread(() -> {
-            try {
-                URL url = new URL(API_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Authorization", "Bearer " + API_KEY);
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setDoOutput(true);
 
-                // Create JSON request body
-                JSONObject body = new JSONObject();
-                body.put("model", MODEL);
+        mistralApiClient = new MistralApiClient();
 
-                JSONArray messages = new JSONArray();
-                JSONObject userMessage = new JSONObject();
-                userMessage.put("role", "user");
-                userMessage.put("content", "What is the best French cheese?");
-                messages.put(userMessage);
+        db = AppDatabase.getInstance(this);
 
-                body.put("messages", messages);
 
-                // Send the request
-                OutputStream os = new BufferedOutputStream(conn.getOutputStream());
-                os.write(body.toString().getBytes());
-                os.flush();
-                os.close();
 
-                // Read the response
-                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                String inputLine;
-                StringBuilder response = new StringBuilder();
+        Intent intent = getIntent();
+        if (intent != null && intent.hasExtra("sessionId")) {
+            currentSessionId = intent.getIntExtra("sessionId", -1);
+            messageList = db.messageDao().getMessagesForSession(currentSessionId);
+        } else {
+            ChatSession newSession = new ChatSession(System.currentTimeMillis());
+            currentSessionId = (int) db.chatSessionDao().insert(newSession);
+            messageList = new ArrayList<>();
+        }
 
-                while ((inputLine = in.readLine()) != null) {
-                    response.append(inputLine);
-                }
+        messageAdapter = new MessageAdapter(messageList);
+        chatRecyclerView = findViewById(R.id.chatRecyclerView);
 
-                in.close();
+        chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        chatRecyclerView.setAdapter(messageAdapter);
+        messageAdapter.notifyItemInserted(messageList.size() - 1);
+        chatRecyclerView.scrollToPosition(messageList.size() - 1);
 
-                // Log the raw response
-                Log.d(TAG, "Response: " + response.toString());
+        sendButton.setOnClickListener((v)->sendMessage(v));
+        newChatButton.setOnClickListener(v->newChat(v));
+        openChatHistoryButton.setOnClickListener(v->openHistory(v));
 
-                // Extract and log the message content
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                String content = jsonResponse
-                        .getJSONArray("choices")
-                        .getJSONObject(0)
-                        .getJSONObject("message")
-                        .getString("content");
+    }
 
-                Log.i(TAG, "AI Response: " + content);
+    public void sendMessage(View v) {
+        String userMessage = inputEditText.getText().toString();
+        if (!userMessage.isEmpty()) {
 
-            } catch (Exception e) {
-                Log.e(TAG, "Error: ", e);
-            }
-        }).start();
 
+
+
+
+            Message msg = new Message(currentSessionId, "user", userMessage);
+            db.messageDao().insert(msg);
+            messageList.add(msg);
+            messageAdapter.notifyItemInserted(messageList.size() - 1);
+            chatRecyclerView.scrollToPosition(messageList.size() - 1);
+            inputEditText.setText("");
+
+
+            mistralApiClient.sendMessage(userMessage, response -> {
+                runOnUiThread(() -> {
+
+                    Message botReply = new Message(currentSessionId, "bot", response);
+                    db.messageDao().insert(botReply);
+                    messageList.add(botReply);
+                    messageAdapter.notifyItemInserted(messageList.size() - 1);
+                    chatRecyclerView.scrollToPosition(messageList.size() - 1);
+                });
+            });
+        }
+    }
+
+    public void newChat(View view) {
+        ChatSession newSession = new ChatSession(System.currentTimeMillis());
+        currentSessionId = (int) db.chatSessionDao().insert(newSession);
+
+        // Clear current message list and update UI
+        messageList.clear();
+        messageAdapter.notifyDataSetChanged();
+
+    }
+
+    public void openHistory(View view) {
+        Intent intent = new Intent(MainActivity.this, ChatHistoryActivity.class);
+        startActivity(intent);
     }
 }
