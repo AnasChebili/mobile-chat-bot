@@ -29,7 +29,7 @@ public class ChatHistoryActivity extends AppCompatActivity {
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this,
-                android.R.layout.simple_list_item_1,
+                R.layout.list_item_chat_history,
                 sessionList.stream().map(s -> "Chat @ " + new java.util.Date(s.timestamp)).toArray(String[]::new)
         );
 

@@ -42,7 +42,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public void onBindViewHolder(MessageViewHolder holder, int position) {
         Message current = messageList.get(position);
         holder.messageTextView.setText(current.getSender() + ": " + current.getContent());
-        holder.messageTextView.setVisibility(View.VISIBLE);
         Log.d("ChatAdapter", "Binding message: role=" + current.getSender() + ", content=" + current.getContent());
 
     }
