@@ -2,7 +2,6 @@ package com.example.mobile_chat_bot;
 
 import android.os.Bundle;
 import android.os.StrictMode;
-import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 
@@ -11,24 +10,24 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.mobile_chat_bot.adapter.MessageAdapter;
 import com.example.mobile_chat_bot.api.MistralApiClient;
+import com.example.mobile_chat_bot.model.Message;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
 
     private MistralApiClient mistralApiClient;
     private EditText inputEditText;
+    private RecyclerView chatRecyclerView;
+    private MessageAdapter messageAdapter;
+    private List<Message> messageList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,15 +42,30 @@ public class MainActivity extends AppCompatActivity {
         });
 
         inputEditText = findViewById(R.id.inputEditText);
+        chatRecyclerView = findViewById(R.id.chatRecyclerView);
+        messageAdapter = new MessageAdapter(messageList);
+        chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        chatRecyclerView.setAdapter(messageAdapter);
 
         mistralApiClient = new MistralApiClient();
-
-        // Send a test message
-        mistralApiClient.sendMessage("What is the best French cheese?");
 
     }
 
     public void sendMessage(View v) {
         String userMessage = inputEditText.getText().toString();
+        if (!userMessage.isEmpty()) {
+            messageList.add(new Message("user", userMessage));
+            messageAdapter.notifyItemInserted(messageList.size() - 1);
+            chatRecyclerView.scrollToPosition(messageList.size() - 1);
+            inputEditText.setText("");
+
+            mistralApiClient.sendMessage(userMessage, response -> {
+                runOnUiThread(() -> {
+                    messageList.add(new Message("bot", response));
+                    messageAdapter.notifyItemInserted(messageList.size() - 1);
+                    chatRecyclerView.scrollToPosition(messageList.size() - 1);
+                });
+            });
+        }
     }
 }
