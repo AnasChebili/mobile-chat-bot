@@ -34,7 +34,7 @@ public class MistralApiClient {
         gson = new Gson();
     }
 
-    public void sendMessage(String userMessage) {
+    public void sendMessage(String userMessage, MistralResponseCallback callback) {
         JsonObject json = new JsonObject();
         json.addProperty("model", MODEL);
 
@@ -57,17 +57,17 @@ public class MistralApiClient {
             @Override
             public void onFailure(Call call, IOException e) {
                 Log.e(TAG, "Request failed", e);
+                callback.onResponse("Failed to connect.");
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful()) {
-                    Log.e(TAG, "Unexpected code: " + response);
+                    callback.onResponse("Error,"+response.code());
                     return;
                 }
 
                 String resp = response.body().string();
-                Log.d(TAG, "Raw response: " + resp);
 
                 JsonObject result = gson.fromJson(resp, JsonObject.class);
                 String reply = result
@@ -76,7 +76,7 @@ public class MistralApiClient {
                         .getAsJsonObject("message")
                         .get("content").getAsString();
 
-                Log.i(TAG, "AI says: " + reply);
+                callback.onResponse(reply);
             }
         });
     }
